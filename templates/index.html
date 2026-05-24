@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-3xl font-extrabold text-amber-900 mb-8 text-center">Nuestras Cookies Recién Horneadas</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {% for product in products %}
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-amber-100 flex flex-col justify-between">
+        <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" alt="{{ product.name }}" class="w-full h-48 object-cover">
+        <div class="p-5 flex-grow">
+            <h3 class="text-xl font-bold text-stone-900">{{ product.name }}</h3>
+            <p class="text-stone-600 mt-2 text-sm">{{ product.description }}</p>
+        </div>
+        <div class="p-5 pt-0 bg-amber-50/50">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-2xl font-black text-amber-700">${{ "%.2f"|format(product.price) }}</span>
+            </div>
+            <!-- Formulario con selector de cantidad -->
+            <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="POST" class="flex gap-2">
+                <input type="number" name="quantity" value="1" min="1" class="w-16 p-2 text-center border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold bg-white text-stone-800">
+                <button type="submit" class="flex-grow bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg transition text-sm flex items-center justify-center gap-2">
+                    Agregar 🛒
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

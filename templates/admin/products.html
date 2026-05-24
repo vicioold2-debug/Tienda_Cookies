@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionar Cookies</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex">
+    <!-- Sidebar -->
+    <div class="w-64 bg-slate-900 text-slate-300 p-6 flex flex-col justify-between">
+        <div>
+            <h2 class="text-xl font-black text-white mb-8 tracking-wider">🍪 ADMIN CONTROL</h2>
+            <nav class="space-y-3">
+                <a href="{{ url_for('admin_dashboard') }}" class="block p-3 rounded hover:bg-slate-800 transition">📦 Pedidos Entrantes</a>
+                <a href="{{ url_for('admin_products') }}" class="block bg-slate-800 text-white p-3 rounded font-bold">🛠 Gestionar Catálogo</a>
+            </nav>
+        </div>
+        <a href="{{ url_for('admin_logout') }}" class="text-red-400 font-bold hover:underline">Cerrar Sesión System ↩</a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Formulario Alta -->
+        <div class="bg-white p-6 rounded-xl shadow-md h-fit">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Añadir Nueva Cookie</h3>
+            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Nombre comercial</label>
+                    <input type="text" name="name" required class="w-full mt-1 p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Descripción de sabor</label>
+                    <textarea name="description" rows="3" class="w-full mt-1 p-2 border rounded"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Precio de Venta ($)</label>
+                    <input type="number" step="0.01" name="price" required class="w-full mt-1 p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Fotografía del Producto</label>
+                    <input type="file" name="image" class="w-full mt-1 text-sm text-slate-500">
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white p-2 rounded font-bold hover:bg-green-700">Subir al Catálogo</button>
+            </form>
+        </div>
+
+        <!-- Tabla CRUD y Edición -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Cookies en Exhibición (Edición Rápida)</h3>
+            <div class="divide-y divide-slate-200">
+                {% for p in products %}
+                <div class="py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="flex items-center space-x-4 min-w-[200px]">
+                        <img src="{{ url_for('static', filename='uploads/' + p.image_url) }}" class="w-16 h-16 object-cover rounded-md border shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-slate-900">{{ p.name }}</h4>
+                            <p class="text-xs text-slate-500">Precio Actual: ${{ "%.2f"|format(p.price) }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulario de Edición Rápida en línea -->
+                    <form action="{{ url_for('edit_product', product_id=p.id) }}" method="POST" class="flex flex-wrap items-center gap-2 flex-grow justify-end">
+                        <input type="number" step="0.01" name="price" value="{{ p.price }}" class="w-24 p-1 text-sm border rounded text-center font-bold" title="Editar Precio">
+                        <input type="text" name="description" value="{{ p.description or '' }}" class="w-48 p-1 text-sm border rounded text-slate-600" title="Editar Descripción">
+                        <button type="submit" class="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 transition">💾 Guardar</button>
+                        <a href="{{ url_for('delete_product', product_id=p.id) }}" class="text-red-500 font-bold hover:text-red-700 text-xs bg-red-50 px-3 py-1.5 rounded hover:bg-red-100 transition">🗑 Borrar</a>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

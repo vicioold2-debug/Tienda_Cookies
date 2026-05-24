@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Access | CookieShop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">Panel de Control Oculto</h2>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <p class="text-red-500 text-sm mb-4">{{ messages[0] }}</p>
+            {% endif %}
+        {% endwith %}
+        <form method="POST">
+            <div class="mb-4">
+                <label class="block text-slate-700 text-sm font-semibold mb-2">Usuario Master</label>
+                <input type="text" name="username" required class="w-full p-2 border rounded focus:ring-2 focus:ring-slate-800 outline-none">
+            </div>
+            <div class="mb-6">
+                <label class="block text-slate-700 text-sm font-semibold mb-2">Contraseña</label>
+                <input type="password" name="password" required class="w-full p-2 border rounded focus:ring-2 focus:ring-slate-800 outline-none">
+            </div>
+            <button type="submit" class="w-full bg-slate-800 text-white p-2 rounded hover:bg-slate-700 font-bold transition">
+                Ingresar al Sistema
+            </button>
+        </form>
+    </div>
+</body>
+</html>

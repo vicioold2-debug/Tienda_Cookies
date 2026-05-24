@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Fábrica de Cookies</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para los iconos de Instagram y WhatsApp -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-amber-50 text-stone-800 min-h-screen flex flex-col relative">
+    
+    <nav class="bg-amber-700 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{{ url_for('index') }}" class="text-2xl font-bold tracking-wide">🍪 CookieShop</a>
+            <div class="space-x-4">
+                <a href="{{ url_for('index') }}" class="hover:underline">Catálogo</a>
+                <a href="{{ url_for('cart') }}" class="bg-amber-500 px-4 py-2 rounded-full font-bold hover:bg-amber-600 transition">🛒 Mi Carrito</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6 flex-grow">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, msg in messages %}
+                    <div class="mb-4 p-3 rounded bg-green-200 text-green-800">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Botón Flotante de Instagram Optimizado -->
+    <a href="https://instagram.com/TU_USUARIO_AQUI" target="_blank" rel="noopener noreferrer" 
+       class="fixed bottom-24 right-6 bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600 text-white w-16 h-16 rounded-full flex items-center justify-center text-3xl shadow-2xl hover:scale-110 transition-transform z-50"
+       title="Síguenos en Instagram">
+        <i class="fa-brands fa-instagram"></i>
+    </a>
+
+    <footer class="bg-stone-800 text-stone-400 p-4 text-center text-sm">
+        &copy; 2026 La Fábrica de Cookies Artesanales. Deliciously baked.
+    </footer>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md border border-amber-100">
+    <h2 class="text-2xl font-bold text-amber-900 mb-6">Finalizar Pedido</h2>
+    <form method="POST">
+        <div class="mb-4">
+            <label class="block text-stone-700 text-sm font-bold mb-2">Nombre Completo</label>
+            <input type="text" name="name" required class="w-full p-2 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="mb-4">
+            <label class="block text-stone-700 text-sm font-bold mb-2">Dirección de Entrega</label>
+            <input type="text" name="address" required class="w-full p-2 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="mb-4">
+            <label class="block text-stone-700 text-sm font-bold mb-2">Teléfono de Contacto</label>
+            <input type="text" name="phone" required class="w-full p-2 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="mb-6">
+            <label class="block text-stone-700 text-sm font-bold mb-2">Notas Especiales (Alergias, timbres, etc.)</label>
+            <textarea name="notes" class="w-full p-2 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500" rows="3"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-amber-600 text-white font-bold p-3 rounded-lg hover:bg-amber-700 transition">
+            Confirmar y Hornear Pedido 🍪
+        </button>
+    </form>
+</div>
+{% endblock %}

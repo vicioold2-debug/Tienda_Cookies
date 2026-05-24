@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex">
+    <!-- Sidebar -->
+    <div class="w-64 bg-slate-900 text-slate-300 p-6 flex flex-col justify-between">
+        <div>
+            <h2 class="text-xl font-black text-white mb-8 tracking-wider">🍪 ADMIN CONTROL</h2>
+            <nav class="space-y-3">
+                <a href="{{ url_for('admin_dashboard') }}" class="block bg-slate-800 text-white p-3 rounded font-bold">📦 Pedidos Entrantes</a>
+                <a href="{{ url_for('admin_products') }}" class="block p-3 rounded hover:bg-slate-800 transition">🛠 Gestionar Catálogo</a>
+            </nav>
+        </div>
+        <a href="{{ url_for('admin_logout') }}" class="text-red-400 font-bold hover:underline">Cerrar Sesión System ↩</a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow p-8">
+        <h2 class="text-3xl font-bold text-slate-800 mb-6">Monitoreo de Pedidos Activos</h2>
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-800 text-white text-sm uppercase">
+                        <th class="p-4">Pedido</th>
+                        <th class="p-4">Cliente / Info</th>
+                        <th class="p-4">Total</th>
+                        <th class="p-4">Estado de Cocina</th>
+                        <th class="p-4">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for order in orders %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-4 font-mono font-bold text-slate-700">#{{ order.order_number }}</td>
+                        <td class="p-4 text-sm">
+                            <strong class="text-slate-900 text-base">{{ order.customer_name }}</strong><br>
+                            <span class="text-slate-500">📍 {{ order.address }} | 📞 {{ order.phone }}</span><br>
+                            <span class="text-xs italic text-amber-700">Notas: {{ order.notes or 'Ninguna' }}</span>
+                        </td>
+                        <td class="p-4 font-bold text-slate-900">${{ "%.2f"|format(order.total) }}</td>
+                        <td class="p-4">
+                            <span class="px-3 py-1 rounded-full font-bold text-xs 
+                                {% if order.status == 'Recibido' %} bg-blue-100 text-blue-800 
+                                {% elif order.status == 'En horno' %} bg-amber-100 text-amber-800 
+                                {% elif order.status == 'En camino' %} bg-purple-100 text-purple-800 
+                                {% else %} bg-green-100 text-green-800 {% endif %}">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td class="p-4">
+                            <form method="POST" class="flex gap-2">
+                                <input type="hidden" name="order_id" value="{{ order.id }}">
+                                <select name="status" class="p-1 border rounded text-xs bg-white">
+                                    <option value="Recibido">Recibido</option>
+                                    <option value="En horno">En horno</option>
+                                    <option value="En camino">En camino</option>
+                                    <option value="Entregado">Entregado</option>
+                                </select>
+                                <button type="submit" class="bg-slate-800 text-white px-2 py-1 rounded text-xs hover:bg-slate-700">Actualizar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

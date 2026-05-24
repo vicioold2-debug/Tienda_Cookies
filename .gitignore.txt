@@ -1,0 +1,15 @@
+# Entornos virtuales y temporales de Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+
+# Base de datos local (¡No queremos sobreescribir tus productos!)
+instance/
+cookies.db
+
+# Configuraciones de editores
+.vscode/
+.idea/
