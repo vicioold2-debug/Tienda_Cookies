@@ -11,7 +11,7 @@ app = Flask(__name__,
             template_folder=os.path.abspath('templates'), 
             static_folder=os.path.abspath('static'))
 
-app.secret_key = 'super_secret_cookie_key_reposteria' # Cambia esto si lo subes a internet
+app.secret_key = 'super_secret_cookie_key_reposteria'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cookies.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
@@ -34,7 +34,8 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True)
     price = db.Column(db.Float, nullable=False)
     image_url = db.Column(db.String(200), nullable=True)
-    active = db.Column(db.Integer, default=1) # 1 = Activo, 0 = Eliminado/Oculto
+    active = db.Column(db.Integer, default=1)
+    stock = db.Column(db.Integer, default=0) # NUEVO: Control de stock físico
 
 class CookieOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -44,7 +45,7 @@ class CookieOrder(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     notes = db.Column(db.Text, nullable=True)
     total = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default='Recibido') # Recibido, En horno, En camino, Entregado
+    status = db.Column(db.String(50), default='Recibido')
     items = db.relationship('OrderItem', backref='order', lazy=True)
 
 class OrderItem(db.Model):
@@ -55,7 +56,6 @@ class OrderItem(db.Model):
     price = db.Column(db.Float, nullable=False)
     product = db.relationship('Product')
 
-# Función auxiliar para validar extensiones de imágenes
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
@@ -71,22 +71,24 @@ def index():
 
 @app.route('/add_to_cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
+    product = Product.query.get_or_404(product_id)
     if 'cart' not in session:
         session['cart'] = {}
     
     cart = session['cart']
     pid_str = str(product_id)
-    
-    # CORRECCIÓN: Captura la cantidad variable elegida por el usuario
     qty_to_add = int(request.form.get('quantity', 1))
     
-    if pid_str in cart:
-        cart[pid_str] += qty_to_add
-    else:
-        cart[pid_str] = qty_to_add
+    # Validar contra el stock total disponible
+    current_in_cart = cart.get(pid_str, 0)
+    if current_in_cart + qty_to_add > product.stock:
+        flash(f'No puedes agregar esa cantidad. Solo quedan {product.stock} unidades de {product.name}.', 'danger')
+        return redirect(url_for('index'))
         
+    cart[pid_str] = current_in_cart + qty_to_add
     session['cart'] = cart
-    flash('¡Cookies añadidas al carrito correctamente!', 'success')
+    session.modified = True
+    flash('¡Cookies añadidas al carrito!', 'success')
     return redirect(url_for('index'))
 
 @app.route('/cart')
@@ -96,27 +98,35 @@ def cart():
     
     cart_items = []
     total = 0
-    for pid_str, qty in session['cart'].items():
+    for pid_str, qty in list(session['cart'].items()):
         product = Product.query.get(int(pid_str))
         if product:
+            # Corrección por si el admin bajó el stock mientras el usuario navegaba
+            if qty > product.stock:
+                qty = product.stock
+                session['cart'][pid_str] = qty
+                session.modified = True
+                if qty == 0:
+                    session['cart'].pop(pid_str)
+                    continue
+            
             subtotal = product.price * qty
             total += subtotal
             cart_items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
             
     return render_template('cart.html', cart_items=cart_items, total=total)
 
-@app.route('/clear_cart')
-def clear_cart():
-    session.pop('cart', None)
-    return redirect(url_for('cart'))
-
 @app.route('/cart/increase/<int:product_id>')
 def cart_increase(product_id):
+    product = Product.query.get_or_404(product_id)
     if 'cart' in session:
         pid_str = str(product_id)
         if pid_str in session['cart']:
-            session['cart'][pid_str] += 1
-            session.modified = True  # Le avisa a Flask que la sesión cambió
+            if session['cart'][pid_str] < product.stock:
+                session['cart'][pid_str] += 1
+                session.modified = True
+            else:
+                flash(f'Alcanzaste el límite de stock disponible para {product.name}.', 'warning')
     return redirect(url_for('cart'))
 
 @app.route('/cart/decrease/<int:product_id>')
@@ -125,7 +135,6 @@ def cart_decrease(product_id):
         pid_str = str(product_id)
         if pid_str in session['cart']:
             session['cart'][pid_str] -= 1
-            # Si la cantidad baja a 0, eliminamos el producto del carrito
             if session['cart'][pid_str] <= 0:
                 session['cart'].pop(pid_str)
             session.modified = True
@@ -139,6 +148,11 @@ def cart_delete_item(product_id):
             session['cart'].pop(pid_str)
             session.modified = True
     flash('Producto removido del carrito', 'info')
+    return redirect(url_for('cart'))
+
+@app.route('/clear_cart')
+def clear_cart():
+    session.pop('cart', None)
     return redirect(url_for('cart'))
 
 @app.route('/checkout', methods=['GET', 'POST'])
@@ -156,17 +170,21 @@ def checkout():
         items_to_save = []
         detalles_whatsapp = [] 
         
+        # Validar y restar stock al confirmar la orden
         for pid_str, qty in session['cart'].items():
             product = Product.query.get(int(pid_str))
             if product:
+                if qty > product.stock:
+                    flash(f'El stock de {product.name} cambió. Por favor revisa tu carrito.', 'danger')
+                    return redirect(url_for('cart'))
+                
                 subtotal = product.price * qty
                 total += subtotal
-                items_to_save.append((product.id, qty, product.price))
+                items_to_save.append((product, qty, product.price))
                 detalles_whatsapp.append(f"- {qty}x {product.name} (${subtotal:.2f})")
         
         order_number = str(uuid.uuid4()).split('-')[0].upper()
         
-        # Guardar en base de datos local para el panel ADMIN
         new_order = CookieOrder(
             order_number=order_number, customer_name=customer_name,
             address=address, phone=phone, notes=notes, total=total
@@ -174,18 +192,15 @@ def checkout():
         db.session.add(new_order)
         db.session.commit()
         
-        for p_id, qty, price in items_to_save:
-            item = OrderItem(order_id=new_order.id, product_id=p_id, quantity=qty, price=price)
+        for prod, qty, price in items_to_save:
+            item = OrderItem(order_id=new_order.id, product_id=prod.id, quantity=qty, price=price)
             db.session.add(item)
+            prod.stock -= qty # DESCONTAR DEL STOCK REAL
+            
         db.session.commit()
+        session.pop('cart', None)
         
-        session.pop('cart', None) # Limpiar carrito de la sesión
-        
-        # --- CONFIGURACIÓN DE TU WHATSAPP ---
-        # ⚠️ Pon tu número aquí: código de país + código de área + número (sin el signo + ni espacios)
-        # Ejemplo para Argentina: "5491112345678"
         tu_telefono = "5491112345678" 
-        
         productos_texto = "\n".join(detalles_whatsapp)
         mensaje_bruto = (
             f"¡Hola! Vengo de la web y quiero confirmar mi pedido:\n\n"
@@ -264,6 +279,7 @@ def admin_products():
         name = request.form['name']
         description = request.form['description']
         price = float(request.form['price'])
+        stock = int(request.form.get('stock', 0)) # NUEVO: Capturar stock inicial
         
         file = request.files['image']
         filename = 'default_cookie.jpg'
@@ -271,7 +287,7 @@ def admin_products():
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             
-        new_product = Product(name=name, description=description, price=price, image_url=filename)
+        new_product = Product(name=name, description=description, price=price, image_url=filename, stock=stock)
         db.session.add(new_product)
         db.session.commit()
         flash('¡Nueva cookie agregada al catálogo con éxito!', 'success')
@@ -280,7 +296,6 @@ def admin_products():
     products = Product.query.filter_by(active=1).all()
     return render_template('admin/products.html', products=products)
 
-# CORRECCIÓN: Nueva ruta para guardar cambios de edición de productos
 @app.route('/admin/products/edit/<int:product_id>', methods=['POST'])
 def edit_product(product_id):
     if not check_admin_auth():
@@ -289,6 +304,7 @@ def edit_product(product_id):
     product = Product.query.get(product_id)
     if product:
         product.price = float(request.form['price'])
+        product.stock = int(request.form['stock']) # NUEVO: Permitir editar stock desde la tabla
         product.description = request.form['description']
         db.session.commit()
         flash(f'¡{product.name} actualizada correctamente!', 'success')
@@ -301,7 +317,7 @@ def delete_product(product_id):
     
     product = Product.query.get(product_id)
     if product:
-        product.active = 0 # Eliminación suave (soft delete)
+        product.active = 0
         db.session.commit()
         flash('Producto removido del catálogo público.', 'warning')
     return redirect(url_for('admin_products'))

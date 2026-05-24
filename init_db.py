@@ -23,7 +23,8 @@ def init_database():
             description TEXT,
             price REAL NOT NULL,
             image_url TEXT,
-            active INTEGER DEFAULT 1
+            active INTEGER DEFAULT 1,
+            stock INTEGER DEFAULT 0
         )
     ''')
 

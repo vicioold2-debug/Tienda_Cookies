@@ -6,7 +6,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen flex">
-    <!-- Sidebar -->
     <div class="w-64 bg-slate-900 text-slate-300 p-6 flex flex-col justify-between">
         <div>
             <h2 class="text-xl font-black text-white mb-8 tracking-wider">🍪 ADMIN CONTROL</h2>
@@ -18,9 +17,7 @@
         <a href="{{ url_for('admin_logout') }}" class="text-red-400 font-bold hover:underline">Cerrar Sesión System ↩</a>
     </div>
 
-    <!-- Main Content -->
     <div class="flex-grow p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Formulario Alta -->
         <div class="bg-white p-6 rounded-xl shadow-md h-fit">
             <h3 class="text-xl font-bold text-slate-800 mb-4">Añadir Nueva Cookie</h3>
             <form method="POST" enctype="multipart/form-data" class="space-y-4">
@@ -32,9 +29,15 @@
                     <label class="block text-sm font-medium text-slate-700">Descripción de sabor</label>
                     <textarea name="description" rows="3" class="w-full mt-1 p-2 border rounded"></textarea>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">Precio de Venta ($)</label>
-                    <input type="number" step="0.01" name="price" required class="w-full mt-1 p-2 border rounded">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Precio ($)</label>
+                        <input type="number" step="0.01" name="price" required class="w-full mt-1 p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Stock Inicial</label>
+                        <input type="number" name="stock" value="0" min="0" required class="w-full mt-1 p-2 border rounded">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Fotografía del Producto</label>
@@ -44,26 +47,38 @@
             </form>
         </div>
 
-        <!-- Tabla CRUD y Edición -->
         <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-            <h3 class="text-xl font-bold text-slate-800 mb-4">Cookies en Exhibición (Edición Rápida)</h3>
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Cookies en Exhibición</h3>
             <div class="divide-y divide-slate-200">
                 {% for p in products %}
-                <div class="py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div class="flex items-center space-x-4 min-w-[200px]">
+                <div class="py-6 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                    <div class="flex items-center space-x-4 min-w-[180px]">
                         <img src="{{ url_for('static', filename='uploads/' + p.image_url) }}" class="w-16 h-16 object-cover rounded-md border shadow-sm">
                         <div>
                             <h4 class="font-bold text-slate-900">{{ p.name }}</h4>
-                            <p class="text-xs text-slate-500">Precio Actual: ${{ "%.2f"|format(p.price) }}</p>
+                            <p class="text-xs {% if p.stock == 0 %} text-red-600 font-bold {% else %} text-slate-500 {% endif %}">Stock actual: {{ p.stock }} u.</p>
                         </div>
                     </div>
                     
-                    <!-- Formulario de Edición Rápida en línea -->
-                    <form action="{{ url_for('edit_product', product_id=p.id) }}" method="POST" class="flex flex-wrap items-center gap-2 flex-grow justify-end">
-                        <input type="number" step="0.01" name="price" value="{{ p.price }}" class="w-24 p-1 text-sm border rounded text-center font-bold" title="Editar Precio">
-                        <input type="text" name="description" value="{{ p.description or '' }}" class="w-48 p-1 text-sm border rounded text-slate-600" title="Editar Descripción">
-                        <button type="submit" class="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 transition">💾 Guardar</button>
-                        <a href="{{ url_for('delete_product', product_id=p.id) }}" class="text-red-500 font-bold hover:text-red-700 text-xs bg-red-50 px-3 py-1.5 rounded hover:bg-red-100 transition">🗑 Borrar</a>
+                    <form action="{{ url_for('edit_product', product_id=p.id) }}" method="POST" class="flex flex-wrap items-center gap-2 flex-grow justify-end w-full xl:w-auto">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-slate-400 px-1 font-bold">PRECIO</span>
+                            <input type="number" step="0.01" name="price" value="{{ p.price }}" class="w-20 p-1 text-sm border rounded text-center font-bold">
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-slate-400 px-1 font-bold">STOCK</span>
+                            <input type="number" name="stock" value="{{ p.stock }}" min="0" class="w-16 p-1 text-sm border rounded text-center font-bold">
+                        </div>
+                        <div class="flex flex-col flex-grow md:flex-none">
+                            <span class="text-[10px] text-slate-400 px-1 font-bold">DESCRIPCIÓN</span>
+                            <input type="text" name="description" value="{{ p.description or '' }}" class="w-full md:w-40 p-1 text-sm border rounded text-slate-600">
+                        </div>
+                        <div class="flex items-end h-11 pt-4">
+                            <button type="submit" class="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 transition">💾 Guardar</button>
+                        </div>
+                        <div class="flex items-end h-11 pt-4">
+                            <a href="{{ url_for('delete_product', product_id=p.id) }}" class="text-red-500 font-bold hover:text-red-700 text-xs bg-red-50 px-3 py-1.5 rounded hover:bg-red-100 transition">🗑 Borrar</a>
+                        </div>
                     </form>
                 </div>
                 {% endfor %}
