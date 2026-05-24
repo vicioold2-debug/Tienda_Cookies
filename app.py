@@ -110,6 +110,37 @@ def clear_cart():
     session.pop('cart', None)
     return redirect(url_for('cart'))
 
+@app.route('/cart/increase/<int:product_id>')
+def cart_increase(product_id):
+    if 'cart' in session:
+        pid_str = str(product_id)
+        if pid_str in session['cart']:
+            session['cart'][pid_str] += 1
+            session.modified = True  # Le avisa a Flask que la sesión cambió
+    return redirect(url_for('cart'))
+
+@app.route('/cart/decrease/<int:product_id>')
+def cart_decrease(product_id):
+    if 'cart' in session:
+        pid_str = str(product_id)
+        if pid_str in session['cart']:
+            session['cart'][pid_str] -= 1
+            # Si la cantidad baja a 0, eliminamos el producto del carrito
+            if session['cart'][pid_str] <= 0:
+                session['cart'].pop(pid_str)
+            session.modified = True
+    return redirect(url_for('cart'))
+
+@app.route('/cart/delete/<int:product_id>')
+def cart_delete_item(product_id):
+    if 'cart' in session:
+        pid_str = str(product_id)
+        if pid_str in session['cart']:
+            session['cart'].pop(pid_str)
+            session.modified = True
+    flash('Producto removido del carrito', 'info')
+    return redirect(url_for('cart'))
+
 @app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
     if 'cart' not in session or not session['cart']:
