@@ -1,6 +1,6 @@
 # app.py
 import os
-import uuid
+from datetime import datetime
 import urllib.parse
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -35,17 +35,17 @@ class Product(db.Model):
     price = db.Column(db.Float, nullable=False)
     image_url = db.Column(db.String(200), nullable=True)
     active = db.Column(db.Integer, default=1)
-    stock = db.Column(db.Integer, default=0) # NUEVO: Control de stock físico
+    stock = db.Column(db.Integer, default=0)
 
 class CookieOrder(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    order_number = db.Column(db.String(50), unique=True, nullable=False)
+    id = db.Column(db.Integer, primary_key=True) # Este ID será nuestro número de pedido incremental
     customer_name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.String(200), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
     notes = db.Column(db.Text, nullable=True)
     total = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(50), default='Recibido')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow) # NUEVO: Registro de fecha y hora
     items = db.relationship('OrderItem', backref='order', lazy=True)
 
 class OrderItem(db.Model):
@@ -79,16 +79,15 @@ def add_to_cart(product_id):
     pid_str = str(product_id)
     qty_to_add = int(request.form.get('quantity', 1))
     
-    # Validar contra el stock total disponible
     current_in_cart = cart.get(pid_str, 0)
     if current_in_cart + qty_to_add > product.stock:
-        flash(f'No puedes agregar esa cantidad. Solo quedan {product.stock} unidades de {product.name}.', 'danger')
+        flash(f'No puedes agregar esa cantidad. Solo quedan {product.stock} unidades.', 'danger')
         return redirect(url_for('index'))
         
     cart[pid_str] = current_in_cart + qty_to_add
     session['cart'] = cart
     session.modified = True
-    flash('¡Cookies añadidas al carrito!', 'success')
+    flash('¡Cookies añadidas!', 'success')
     return redirect(url_for('index'))
 
 @app.route('/cart')
@@ -101,7 +100,6 @@ def cart():
     for pid_str, qty in list(session['cart'].items()):
         product = Product.query.get(int(pid_str))
         if product:
-            # Corrección por si el admin bajó el stock mientras el usuario navegaba
             if qty > product.stock:
                 qty = product.stock
                 session['cart'][pid_str] = qty
@@ -126,7 +124,7 @@ def cart_increase(product_id):
                 session['cart'][pid_str] += 1
                 session.modified = True
             else:
-                flash(f'Alcanzaste el límite de stock disponible para {product.name}.', 'warning')
+                flash(f'Límite de stock alcanzado.', 'warning')
     return redirect(url_for('cart'))
 
 @app.route('/cart/decrease/<int:product_id>')
@@ -147,7 +145,6 @@ def cart_delete_item(product_id):
         if pid_str in session['cart']:
             session['cart'].pop(pid_str)
             session.modified = True
-    flash('Producto removido del carrito', 'info')
     return redirect(url_for('cart'))
 
 @app.route('/clear_cart')
@@ -170,12 +167,11 @@ def checkout():
         items_to_save = []
         detalles_whatsapp = [] 
         
-        # Validar y restar stock al confirmar la orden
         for pid_str, qty in session['cart'].items():
             product = Product.query.get(int(pid_str))
             if product:
                 if qty > product.stock:
-                    flash(f'El stock de {product.name} cambió. Por favor revisa tu carrito.', 'danger')
+                    flash(f'El stock de {product.name} cambió. Revisa tu carrito.', 'danger')
                     return redirect(url_for('cart'))
                 
                 subtotal = product.price * qty
@@ -183,28 +179,28 @@ def checkout():
                 items_to_save.append((product, qty, product.price))
                 detalles_whatsapp.append(f"- {qty}x {product.name} (${subtotal:.2f})")
         
-        order_number = str(uuid.uuid4()).split('-')[0].upper()
-        
+        # Guardar primero para generar el ID incremental automático
         new_order = CookieOrder(
-            order_number=order_number, customer_name=customer_name,
-            address=address, phone=phone, notes=notes, total=total
+            customer_name=customer_name, address=address, phone=phone, notes=notes, total=total
         )
         db.session.add(new_order)
-        db.session.commit()
+        db.session.commit() # Aquí se crea el new_order.id (ej: 1, 2, 3...)
         
         for prod, qty, price in items_to_save:
             item = OrderItem(order_id=new_order.id, product_id=prod.id, quantity=qty, price=price)
             db.session.add(item)
-            prod.stock -= qty # DESCONTAR DEL STOCK REAL
+            prod.stock -= qty 
             
         db.session.commit()
-        session.pop('cart', None)
+        session.pop('cart', None) # Limpiamos el carrito
         
+        # --- CONFIGURACIÓN DE TU WHATSAPP ---
         tu_telefono = "5491112345678" 
+        
         productos_texto = "\n".join(detalles_whatsapp)
         mensaje_bruto = (
             f"¡Hola! Vengo de la web y quiero confirmar mi pedido:\n\n"
-            f"*Pedido:* #{order_number}\n"
+            f"*Pedido:* #{new_order.id}\n"
             f"*Cliente:* {customer_name}\n"
             f"*Dirección:* {address}\n"
             f"*Teléfono:* {phone}\n"
@@ -216,7 +212,8 @@ def checkout():
         mensaje_encriptado = urllib.parse.quote(mensaje_bruto)
         whatsapp_url = f"https://wa.me/{tu_telefono}?text={mensaje_encriptado}"
         
-        return render_template('order_success.html', order_number=order_number, whatsapp_url=whatsapp_url)
+        # CAMBIO CLAVE: Redirección automática directa sin pantallas intermedias
+        return redirect(whatsapp_url)
         
     return render_template('checkout.html')
 
@@ -226,9 +223,7 @@ def checkout():
 # ==========================================
 
 def check_admin_auth():
-    if 'admin_logged_in' not in session:
-        return False
-    return True
+    return 'admin_logged_in' in session
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -265,10 +260,17 @@ def admin_dashboard():
         if order:
             order.status = new_status
             db.session.commit()
-            flash(f'Pedido #{order.order_number} actualizado a: {new_status}', 'success')
+            flash(f'Pedido #{order.id} actualizado a: {new_status}', 'success')
             
-    orders = CookieOrder.query.order_by(CookieOrder.id.desc()).all()
-    return render_template('admin/dashboard.html', orders=orders)
+    # Capturar filtro de estado opcional desde la URL (ej: /admin/dashboard?status=En horno)
+    status_filter = request.args.get('status', 'Todos')
+    
+    if status_filter == 'Todos':
+        orders = CookieOrder.query.order_by(CookieOrder.id.desc()).all()
+    else:
+        orders = CookieOrder.query.filter_by(status=status_filter).order_by(CookieOrder.id.desc()).all()
+        
+    return render_template('admin/dashboard.html', orders=orders, current_filter=status_filter)
 
 @app.route('/admin/products', methods=['GET', 'POST'])
 def admin_products():
@@ -279,7 +281,7 @@ def admin_products():
         name = request.form['name']
         description = request.form['description']
         price = float(request.form['price'])
-        stock = int(request.form.get('stock', 0)) # NUEVO: Capturar stock inicial
+        stock = int(request.form.get('stock', 0))
         
         file = request.files['image']
         filename = 'default_cookie.jpg'
@@ -290,7 +292,6 @@ def admin_products():
         new_product = Product(name=name, description=description, price=price, image_url=filename, stock=stock)
         db.session.add(new_product)
         db.session.commit()
-        flash('¡Nueva cookie agregada al catálogo con éxito!', 'success')
         return redirect(url_for('admin_products'))
         
     products = Product.query.filter_by(active=1).all()
@@ -304,10 +305,9 @@ def edit_product(product_id):
     product = Product.query.get(product_id)
     if product:
         product.price = float(request.form['price'])
-        product.stock = int(request.form['stock']) # NUEVO: Permitir editar stock desde la tabla
+        product.stock = int(request.form['stock'])
         product.description = request.form['description']
         db.session.commit()
-        flash(f'¡{product.name} actualizada correctamente!', 'success')
     return redirect(url_for('admin_products'))
 
 @app.route('/admin/products/delete/<int:product_id>')
@@ -319,10 +319,29 @@ def delete_product(product_id):
     if product:
         product.active = 0
         db.session.commit()
-        flash('Producto removido del catálogo público.', 'warning')
     return redirect(url_for('admin_products'))
 
 if __name__ == '__main__':
+    from werkzeug.security import generate_password_hash # Import necesario para encriptar la pass inicial
+
+    if not os.path.exists(os.path.join(os.getcwd(), 'instance')):
+        os.makedirs(os.path.join(os.getcwd(), 'instance'))
+        
+    with app.app_context():
+        db.create_all()
+        
+        # NUEVO: Crear usuario administrador por defecto si la tabla está vacía
+        admin_exists = User.query.filter_by(username='admin').first()
+        if not admin_exists:
+            hashed_pw = generate_password_hash('admin123') # ← AQUÍ ESTÁ TU CONTRASEÑA
+            default_admin = User(username='admin', password=hashed_pw)
+            db.session.add(default_admin)
+            db.session.commit()
+            print("¡Usuario administrador creado con éxito! (User: admin | Pass: admin123)")
+        
+        print("¡Base de datos limpia y tablas sincronizadas correctamente!")
+        
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
+        
     app.run(debug=True)

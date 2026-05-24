@@ -2,12 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Dashboard</title>
+    <title>Panel de Pedidos</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen flex">
-    <!-- Sidebar -->
-    <div class="w-64 bg-slate-900 text-slate-300 p-6 flex flex-col justify-between">
+    <div class="w-64 bg-slate-900 text-slate-300 p-6 flex flex-col justify-between shadow-xl">
         <div>
             <h2 class="text-xl font-black text-white mb-8 tracking-wider">🍪 ADMIN CONTROL</h2>
             <nav class="space-y-3">
@@ -15,58 +14,75 @@
                 <a href="{{ url_for('admin_products') }}" class="block p-3 rounded hover:bg-slate-800 transition">🛠 Gestionar Catálogo</a>
             </nav>
         </div>
-        <a href="{{ url_for('admin_logout') }}" class="text-red-400 font-bold hover:underline">Cerrar Sesión System ↩</a>
+        <a href="{{ url_for('admin_logout') }}" class="text-red-400 font-bold hover:underline">Cerrar Sesión ↩</a>
     </div>
 
-    <!-- Main Content -->
     <div class="flex-grow p-8">
-        <h2 class="text-3xl font-bold text-slate-800 mb-6">Monitoreo de Pedidos Activos</h2>
-        <div class="bg-white rounded-xl shadow overflow-hidden">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-slate-800 text-white text-sm uppercase">
-                        <th class="p-4">Pedido</th>
-                        <th class="p-4">Cliente / Info</th>
-                        <th class="p-4">Total</th>
-                        <th class="p-4">Estado de Cocina</th>
-                        <th class="p-4">Acción</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200">
-                    {% for order in orders %}
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-4 font-mono font-bold text-slate-700">#{{ order.order_number }}</td>
-                        <td class="p-4 text-sm">
-                            <strong class="text-slate-900 text-base">{{ order.customer_name }}</strong><br>
-                            <span class="text-slate-500">📍 {{ order.address }} | 📞 {{ order.phone }}</span><br>
-                            <span class="text-xs italic text-amber-700">Notas: {{ order.notes or 'Ninguna' }}</span>
-                        </td>
-                        <td class="p-4 font-bold text-slate-900">${{ "%.2f"|format(order.total) }}</td>
-                        <td class="p-4">
-                            <span class="px-3 py-1 rounded-full font-bold text-xs 
-                                {% if order.status == 'Recibido' %} bg-blue-100 text-blue-800 
-                                {% elif order.status == 'En horno' %} bg-amber-100 text-amber-800 
-                                {% elif order.status == 'En camino' %} bg-purple-100 text-purple-800 
-                                {% else %} bg-green-100 text-green-800 {% endif %}">
-                                {{ order.status }}
-                            </span>
-                        </td>
-                        <td class="p-4">
-                            <form method="POST" class="flex gap-2">
-                                <input type="hidden" name="order_id" value="{{ order.id }}">
-                                <select name="status" class="p-1 border rounded text-xs bg-white">
-                                    <option value="Recibido">Recibido</option>
-                                    <option value="En horno">En horno</option>
-                                    <option value="En camino">En camino</option>
-                                    <option value="Entregado">Entregado</option>
-                                </select>
-                                <button type="submit" class="bg-slate-800 text-white px-2 py-1 rounded text-xs hover:bg-slate-700">Actualizar</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-black text-slate-800">Historial y Control de Pedidos</h2>
+            <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full border border-blue-200">Filtro: {{ current_filter }}</span>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-6 bg-white p-3 rounded-xl shadow-sm border">
+            <a href="{{ url_for('admin_dashboard', status='Todos') }}" class="px-4 py-2 rounded-lg text-sm font-bold transition {% if current_filter == 'Todos' %} bg-slate-800 text-white {% else %} bg-slate-100 text-slate-600 hover:bg-slate-200 {% endif %}">Todos</a>
+            <a href="{{ url_for('admin_dashboard', status='Recibido') }}" class="px-4 py-2 rounded-lg text-sm font-bold transition {% if current_filter == 'Recibido' %} bg-amber-500 text-white {% else %} bg-amber-50 text-amber-700 hover:bg-amber-100 {% endif %}">⏳ Recibidos</a>
+            <a href="{{ url_for('admin_dashboard', status='En horno') }}" class="px-4 py-2 rounded-lg text-sm font-bold transition {% if current_filter == 'En horno' %} bg-orange-500 text-white {% else %} bg-orange-50 text-orange-700 hover:bg-orange-100 {% endif %}">🔥 En Horno</a>
+            <a href="{{ url_for('admin_dashboard', status='En camino') }}" class="px-4 py-2 rounded-lg text-sm font-bold transition {% if current_filter == 'En camino' %} bg-blue-500 text-white {% else %} bg-blue-50 text-blue-700 hover:bg-blue-100 {% endif %}">🛵 En Camino</a>
+            <a href="{{ url_for('admin_dashboard', status='Entregado') }}" class="px-4 py-2 rounded-lg text-sm font-bold transition {% if current_filter == 'Entregado' %} bg-green-600 text-white {% else %} bg-green-50 text-green-700 hover:bg-green-100 {% endif %}">✅ Entregados</a>
+        </div>
+
+        <div class="space-y-4">
+            {% if not orders %}
+                <div class="bg-white p-8 rounded-xl text-center shadow border text-slate-400 font-medium">No hay pedidos registrados con este estado.</div>
+            {% endif %}
+
+            {% for order in orders %}
+            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 transition hover:shadow-lg
+                {% if order.status == 'Recibido' %} border-amber-400 {% elif order.status == 'En horno' %} border-orange-500 {% elif order.status == 'En camino' %} border-blue-500 {% else %} border-green-500 {% endif %}">
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b pb-3">
+                    <div>
+                        <span class="text-xs font-black tracking-wider text-slate-400 uppercase">PEDIDO CORRELATIVO</span>
+                        <h3 class="text-xl font-black text-slate-800">#{{ order.id }}</h3>
+                        <p class="text-xs text-slate-500 font-medium">📅 Realizado el: {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                    
+                    <form method="POST" class="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border">
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <select name="status" class="text-xs font-bold p-1 bg-white border rounded text-slate-700 focus:outline-none">
+                            <option value="Recibido" {% if order.status == 'Recibido' %}selected{% endif %}>⏳ Recibido</option>
+                            <option value="En horno" {% if order.status == 'En horno' %}selected{% endif %}>🔥 En Horno</option>
+                            <option value="En camino" {% if order.status == 'En camino' %}selected{% endif %}>🛵 En Camino</option>
+                            <option value="Entregado" {% if order.status == 'Entregado' %}selected{% endif %}>✅ Entregado</option>
+                        </select>
+                        <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded transition">Actualizar</button>
+                    </form>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg">
+                    <div><strong class="text-slate-800 text-xs block">CLIENTE</strong> {{ order.customer_name }}</div>
+                    <div><strong class="text-slate-800 text-xs block">DIRECCIÓN</strong> {{ order.address }}</div>
+                    <div><strong class="text-slate-800 text-xs block">TELÉFONO</strong> {{ order.phone }}</div>
+                </div>
+
+                <div class="mb-4">
+                    <strong class="text-xs text-slate-400 block tracking-wider mb-1 uppercase">Detalle de Cookies</strong>
+                    <ul class="space-y-1 bg-amber-50/30 p-3 rounded-lg border border-amber-100/50">
+                        {% for item in order.items %}
+                        <li class="text-sm text-slate-700 flex justify-between">
+                            <span>🍪 <strong>{{ item.quantity }}x</strong> {{ item.product.name }}</span>
+                            <span class="font-medium text-slate-500">${{ "%.2f"|format(item.price * item.quantity) }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900 text-white p-3 rounded-lg">
+                    <div class="text-xs"><strong class="text-slate-400 block font-normal">NOTAS:</strong> <span class="italic text-slate-300">"{{ order.notes }}"</span></div>
+                    <div class="text-right"><span class="text-xs text-slate-400 block">TOTAL COBRADO</span><span class="text-xl font-black text-amber-400">${{ "%.2f"|format(order.total) }}</span></div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </body>
